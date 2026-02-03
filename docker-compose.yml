@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  rainatmo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: rainatmo
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DB_PATH=/app/db/rainatmo.sqlite
+      - NETATMO_CLIENT_ID=${NETATMO_CLIENT_ID}
+      - NETATMO_CLIENT_SECRET=${NETATMO_CLIENT_SECRET}
+      - NETATMO_ACCESS_TOKEN=${NETATMO_ACCESS_TOKEN}
+      - NETATMO_REFRESH_TOKEN=${NETATMO_REFRESH_TOKEN}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+    volumes:
+      - ./db:/app/db
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
