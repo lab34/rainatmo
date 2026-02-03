@@ -39,3 +39,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Docker Compose sample (from other projects)
+docker-compose.sample

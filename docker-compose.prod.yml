@@ -1,0 +1,73 @@
+services:
+  rainatmo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: rainatmo
+    restart: unless-stopped
+    environment:
+      # Server configuration
+      - PORT=3000
+      - NODE_ENV=production
+      - DB_PATH=/app/db/rainatmo.sqlite
+
+      # Netatmo API credentials (from .env)
+      - NETATMO_CLIENT_ID=${NETATMO_CLIENT_ID}
+      - NETATMO_CLIENT_SECRET=${NETATMO_CLIENT_SECRET}
+      - NETATMO_ACCESS_TOKEN=${NETATMO_ACCESS_TOKEN}
+      - NETATMO_REFRESH_TOKEN=${NETATMO_REFRESH_TOKEN}
+
+      # Admin panel credentials
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+
+    volumes:
+      # Persistent volume for SQLite database and tokens
+      - rainatmo_data:/app/db
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    labels:
+      - "traefik.enable=true"
+
+      # HTTP Router and Redirection to HTTPS
+      - "traefik.http.routers.rainatmo-http.rule=Host(`rainatmo.$MY_DOMAIN`)"
+      - "traefik.http.routers.rainatmo-http.entrypoints=web"
+      - "traefik.http.routers.rainatmo-http.middlewares=https-redirect"
+
+      # HTTPS Router
+      - "traefik.http.routers.rainatmo-https.rule=Host(`rainatmo.$MY_DOMAIN`)"
+      - "traefik.http.routers.rainatmo-https.entrypoints=web-secure"
+      - "traefik.http.routers.rainatmo-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.rainatmo-https.loadbalancer.server.port=3000"
+
+      # HTTPS Redirect Middleware
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+# Volumes persistants
+volumes:
+  rainatmo_data:
+    driver: local
+    name: rainatmo_db_data
+
+# Réseaux
+networks:
+  default:
+    name: $DEFAULT_NETWORK
+    external: true
