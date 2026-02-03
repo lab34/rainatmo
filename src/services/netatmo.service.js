@@ -119,14 +119,18 @@ export class NetatmoService {
     const data = await response.json();
     const measurements = [];
 
-    if (data.body) {
-      for (const [timestamp, values] of Object.entries(data.body)) {
-        if (values && values[0] !== null) {
-          measurements.push({
-            timestamp: parseInt(timestamp),
-            date: new Date(parseInt(timestamp) * 1000),
-            value: values[0],
-          });
+    if (data.body && Array.isArray(data.body)) {
+      for (const item of data.body) {
+        if (item.value && Array.isArray(item.value)) {
+          for (const valueArray of item.value) {
+            if (valueArray && valueArray[0] !== null && valueArray[0] !== undefined) {
+              measurements.push({
+                timestamp: item.beg_time,
+                date: new Date(item.beg_time * 1000),
+                value: valueArray[0],
+              });
+            }
+          }
         }
       }
     }
