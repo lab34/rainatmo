@@ -75,7 +75,7 @@ function buildTable() {
   header.innerHTML = '<th>Période</th>';
   for (const station of stationsData) {
     const th = document.createElement('th');
-    th.textContent = station.name;
+    th.textContent = station.location; // Use location instead of name
     header.appendChild(th);
   }
 
