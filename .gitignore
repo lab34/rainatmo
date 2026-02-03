@@ -42,3 +42,7 @@ temp/
 
 # Docker Compose sample (from other projects)
 docker-compose.sample
+
+# Sensitive documentation with credentials
+prd.md
+historique.md
