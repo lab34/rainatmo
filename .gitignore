@@ -46,3 +46,9 @@ docker-compose.sample
 # Sensitive documentation with credentials
 prd.md
 historique.md
+
+# Documentation files with sensitive data
+CONFIG_FINAL.md
+BUGFIX.md
+IMPLEMENTATION.md
+DEPLOYMENT.md
