@@ -121,6 +121,52 @@ La commande `npm run init-db` doit être exécutée **une seule fois** après l'
 - **Reprise possible** : Le script détecte automatiquement les données déjà présentes
 - **Comportement** : Arrêt en cas d'erreur API pour correction manuelle
 
+## 🐳 Déploiement Docker
+
+### Mode développement local
+
+```bash
+# Construire et démarrer le container
+docker-compose up -d
+
+# Vérifier le statut
+docker-compose ps
+
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter
+docker-compose down
+```
+
+### Initialisation de l'historique dans Docker
+
+Après le premier démarrage du container, exécuter l'initialisation :
+
+```bash
+# Lancer l'initialisation (en background)
+docker exec rainatmo node src/scripts/init-historical-data.js &
+
+# Suivre la progression
+docker logs -f rainatmo
+```
+
+**Note** : Sur Mac Silicon (M1/M2/M3), l'image AMD64 s'exécute via Rosetta2 sans problème.
+
+### Commandes utiles
+
+```bash
+# Accéder au shell du container
+docker exec -it rainatmo sh
+
+# Redémarrer le container
+docker-compose restart
+
+# Reconstruire l'image après modifications
+docker-compose build --no-cache
+docker-compose up -d
+```
+
 ## 📊 Architecture
 
 ```
