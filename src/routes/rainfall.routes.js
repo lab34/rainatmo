@@ -73,29 +73,47 @@ export async function rainfallRoutes(fastify) {
           }
         }
 
-        // Get "today" data (since midnight)
+        // Get "today" data (since midnight UTC)
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0);
         const todayStart = Math.floor(today.getTime() / 1000);
 
-        const todayMeasurements = await fastify.netatmoService.getMeasure(
-          accessToken,
-          station.device_id,
-          station.module_id,
-          todayStart,
-          now,
-          '1day'
-        );
-
-        if (todayMeasurements.length > 0) {
-          const total = todayMeasurements.reduce((sum, m) => sum + m.value, 0);
-          data.periods.today = total;
-          await fastify.db.saveRainfallData(
-            station.id,
-            'day',
-            today.toISOString().split('T')[0],
-            total
+        try {
+          const todayMeasurements = await fastify.netatmoService.getMeasure(
+            accessToken,
+            station.device_id,
+            station.module_id,
+            todayStart,
+            now,
+            '5min' // Use 5min scale for intraday data
           );
+
+          fastify.log.debug(`Today measurements for station ${station.id}:`, {
+            count: todayMeasurements.length,
+            start: new Date(todayStart * 1000).toISOString(),
+            end: new Date(now * 1000).toISOString(),
+          });
+
+          if (todayMeasurements.length > 0) {
+            const total = todayMeasurements.reduce((sum, m) => sum + m.value, 0);
+            data.periods.today = total;
+            await fastify.db.saveRainfallData(
+              station.id,
+              'day',
+              today.toISOString().split('T')[0],
+              total
+            );
+          } else {
+            // No rain today, set to 0
+            data.periods.today = 0;
+          }
+        } catch (todayError) {
+          fastify.log.warn(`Failed to fetch today data for station ${station.id}:`, todayError.message);
+          // Try to get from cache
+          const cached = await fastify.db.getRainfallData(station.id, 'day');
+          const todayStr = today.toISOString().split('T')[0];
+          const todayCache = cached.find((d) => d.period_value === todayStr);
+          data.periods.today = todayCache ? todayCache.amount_mm : 0;
         }
 
         data.source = 'api';

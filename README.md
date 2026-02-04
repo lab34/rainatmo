@@ -71,7 +71,29 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=votre_mot_de_passe_securise
 ```
 
-4. **Démarrer l'application**
+4. **Initialiser les données historiques**
+
+**Important :** Après le premier démarrage, vous devez initialiser la base de données avec l'historique de pluviométrie.
+
+```bash
+# Le script récupère 5 ans de données depuis l'API Netatmo
+# Durée estimée : 15-30 minutes (avec throttling API)
+npm run init-db
+```
+
+Le script :
+- ✅ Récupère les données jour par jour depuis 5 ans
+- ✅ Calcule automatiquement les agrégats mensuels et annuels
+- ✅ Détecte les données déjà présentes (peut être relancé sans risque)
+- ✅ S'arrête en cas d'erreur API (correction manuelle puis relance)
+- ✅ Affiche la progression tous les 50 jours
+
+**Mode test** (pour validation rapide sur 7 jours) :
+```bash
+TEST_DAYS=7 node src/scripts/init-historical-data.js
+```
+
+5. **Démarrer l'application**
 
 ```bash
 npm start
@@ -84,11 +106,20 @@ L'application sera accessible sur `http://localhost:3000`
 ```bash
 npm start              # Démarrer le serveur
 npm run dev            # Démarrer en mode développement (watch)
-npm run init-db        # Initialiser la base avec l'historique (à venir)
+npm run init-db        # Initialiser l'historique (5 ans de données)
 npm test               # Lancer les tests (à venir)
 npm run lint           # Linter le code
 npm run format         # Formater le code
 ```
+
+### Initialisation de l'historique
+
+La commande `npm run init-db` doit être exécutée **une seule fois** après l'installation pour récupérer l'historique de pluviométrie :
+
+- **Données récupérées** : 5 ans de données quotidiennes depuis l'API Netatmo
+- **Durée** : 15-30 minutes (~3650 requêtes API avec throttling)
+- **Reprise possible** : Le script détecte automatiquement les données déjà présentes
+- **Comportement** : Arrêt en cas d'erreur API pour correction manuelle
 
 ## 📊 Architecture
 
