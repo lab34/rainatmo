@@ -14,12 +14,12 @@ export async function dailyUpdateJob(fastify) {
     // Get yesterday's date
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
+    yesterday.setUTCHours(0, 0, 0, 0);
     const yesterdayStart = Math.floor(yesterday.getTime() / 1000);
     const yesterdayEnd = yesterdayStart + 86400; // +24 hours
 
     for (const station of stations) {
-      console.log(`[DailyUpdateJob] Processing station: ${station.name}`);
+      console.log(`[DailyUpdateJob] Processing station: ${station.name} (${station.location})`);
 
       // Fetch yesterday's daily rainfall
       try {
@@ -29,7 +29,7 @@ export async function dailyUpdateJob(fastify) {
           station.module_id,
           yesterdayStart,
           yesterdayEnd,
-          '1day'
+          '5min' // Use 5min scale for accurate daily totals
         );
 
         if (measurements.length > 0) {
@@ -37,26 +37,42 @@ export async function dailyUpdateJob(fastify) {
           const dateStr = yesterday.toISOString().split('T')[0];
 
           await fastify.db.saveRainfallData(station.id, 'day', dateStr, total);
-          console.log(`  - Saved daily data for ${dateStr}: ${total.toFixed(2)}mm`);
+          console.log(`  ✓ Saved daily data for ${dateStr}: ${total.toFixed(2)}mm`);
+        } else {
+          const dateStr = yesterday.toISOString().split('T')[0];
+          console.log(`  - No rainfall for ${dateStr} (0mm)`);
+          // Save 0mm to keep continuity
+          await fastify.db.saveRainfallData(station.id, 'day', dateStr, 0);
         }
       } catch (error) {
-        console.error('  - Error fetching daily data:', error.message);
+        console.error(`  ✗ Error fetching daily data for ${station.location}:`, error.message);
       }
+
+      // Calculate monthly aggregate for current month (always update)
+      const today = new Date();
+      const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthKey = currentMonth.toISOString().slice(0, 7); // YYYY-MM
+
+      console.log(`  - Updating monthly aggregate for ${monthKey}`);
+      await calculateMonthlyAggregate(fastify, station, currentMonth);
 
       // Calculate monthly aggregate for previous month if it's the 1st of the month
-      const today = new Date();
       if (today.getDate() === 1) {
         const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const monthKey = lastMonth.toISOString().slice(0, 7); // YYYY-MM
-
-        console.log(`  - Calculating monthly aggregate for ${monthKey}`);
+        const lastMonthKey = lastMonth.toISOString().slice(0, 7);
+        console.log(`  - Finalizing monthly aggregate for ${lastMonthKey}`);
         await calculateMonthlyAggregate(fastify, station, lastMonth);
       }
+
+      // Calculate yearly aggregate for current year (always update)
+      const currentYear = today.getFullYear();
+      console.log(`  - Updating yearly aggregate for ${currentYear}`);
+      await calculateYearlyAggregate(fastify, station, currentYear);
 
       // Calculate yearly aggregate for previous year if it's Jan 1st
       if (today.getMonth() === 0 && today.getDate() === 1) {
         const lastYear = today.getFullYear() - 1;
-        console.log(`  - Calculating yearly aggregate for ${lastYear}`);
+        console.log(`  - Finalizing yearly aggregate for ${lastYear}`);
         await calculateYearlyAggregate(fastify, station, lastYear);
       }
     }
@@ -66,9 +82,9 @@ export async function dailyUpdateJob(fastify) {
       new Date().toISOString()
     );
 
-    console.log('[DailyUpdateJob] Daily update completed');
+    console.log('[DailyUpdateJob] ✓ Daily update completed');
   } catch (error) {
-    console.error('[DailyUpdateJob] Failed:', error.message);
+    console.error('[DailyUpdateJob] ✗ Failed:', error.message);
     throw error;
   }
 }
